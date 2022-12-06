@@ -1,14 +1,8 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+pub mod parser;
+pub mod string_parser;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+mod parser_test;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+#[cfg(test)]
+mod string_parser_test;
