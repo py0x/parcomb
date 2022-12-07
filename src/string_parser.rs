@@ -1,7 +1,7 @@
-use crate::parser::{Parser, ParseResult};
-
+use crate::parser::{ParseResult, Parser};
+use regex::Regex;
 pub struct LiteralParser {
-    literal: String
+    literal: String,
 }
 
 impl Parser<str, String, String> for LiteralParser {
@@ -13,12 +13,50 @@ impl Parser<str, String, String> for LiteralParser {
             return Ok(res);
         }
 
-        return Err("unmatch".to_string());
+        return Err(format!("LiteralParser: No Match"));
     }
 }
 
 pub fn lit(s: &str) -> LiteralParser {
-    LiteralParser { literal: s.to_string() }
+    LiteralParser {
+        literal: s.to_string(),
+    }
 }
 
-// Regex parser
+pub struct RegexParser {
+    re: Regex,
+}
+
+/// # Example:
+/// ```
+/// use parcomb::string_parser::*;
+/// use parcomb::parser::{Parser, ParseResult};
+///
+/// let par = reg(r"\d{2}\w+");
+/// let inp = "19abcd$$";
+/// let res = par.parse(inp).unwrap();
+/// assert_eq!(("19abcd".to_string(), "$$"), res);
+///
+/// let inp2 = "ccc19abcd$$";
+/// let res2 = par.parse(inp2);
+/// assert!(res2.is_err());
+/// ```
+impl Parser<str, String, String> for RegexParser {
+    fn parse<'a>(&self, input: &'a str) -> ParseResult<&'a str, String, String> {
+        match self.re.find(input) {
+            None => Err(format!("RegexParser: No Match")),
+            Some(mat) => {
+                let out = mat.as_str().to_string();
+                let remain_i = &input[(mat.end()..)];
+                Ok((out, remain_i))
+            }
+        }
+    }
+}
+
+pub fn reg(re: &str) -> RegexParser {
+    let re_pattern = format!("^{}", re);
+    let re = Regex::new(&re_pattern).unwrap();
+
+    RegexParser { re }
+}
