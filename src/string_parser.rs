@@ -17,12 +17,6 @@ impl Parser<str, String, String> for LiteralParser {
     }
 }
 
-pub fn lit(s: &str) -> LiteralParser {
-    LiteralParser {
-        literal: s.to_string(),
-    }
-}
-
 pub struct RegexParser {
     re: Regex,
 }
@@ -54,9 +48,23 @@ impl Parser<str, String, String> for RegexParser {
     }
 }
 
+pub fn lit(s: &str) -> LiteralParser {
+    LiteralParser {
+        literal: s.to_string(),
+    }
+}
+
 pub fn reg(re: &str) -> RegexParser {
     let re_pattern = format!("^{}", re);
     let re = Regex::new(&re_pattern).unwrap();
 
     RegexParser { re }
+}
+
+pub fn spaces() -> RegexParser {
+    reg(r"(\s)*")
+}
+
+pub fn lit_sp(s: &str) -> impl Parser<str, String, String> {
+    spaces().and_r(lit(s)).and_l(spaces())
 }

@@ -392,3 +392,157 @@ impl<P> Clone for RcParser<P> {
         }
     }
 }
+
+pub struct ListSepParser<P1, P2, O2> {
+    elm_parser: P1,
+    sep_parser: P2,
+    _phantom: PhantomData<O2>,
+}
+
+/// # Example:
+/// ```
+/// use parcomb::string_parser::lit;
+/// use parcomb::parser::*;
+///
+/// let par = lst_sep(lit("a"), lit(","));
+/// let inp = "a,a,a)))";
+/// let res = par.parse(inp).unwrap();
+/// assert_eq!(vec!["a", "a", "a"], res.0);
+/// assert_eq!(")))", res.1);
+///
+/// let inp2 = "a)))";
+/// let res2 = par.parse(inp2).unwrap();
+/// assert_eq!(vec!["a"], res2.0);
+/// assert_eq!(")))", res2.1);
+///
+/// let inp3 = "b)))";
+/// let res3 = par.parse(inp3);
+/// assert!(res3.is_err());
+/// ```
+impl<I, O1, O2, E, P1, P2> Parser<I, Vec<O1>, E> for ListSepParser<P1, P2, O2>
+where
+    I: ?Sized,
+    P1: Parser<I, O1, E>,
+    P2: Parser<I, O2, E>,
+{
+    fn parse<'a>(&self, input: &'a I) -> ParseResult<&'a I, Vec<O1>, E> {
+        let mut res: Vec<O1> = vec![];
+
+        let mut inp = input;
+        let err: E;
+
+        match self.elm_parser.parse(inp) {
+            Err(e) => {
+                return Err(e);
+            }
+            Ok((elm, i)) => {
+                res.push(elm);
+                inp = i;
+            }
+        }
+
+        loop {
+            let mut inp_step = inp;
+
+            match self.sep_parser.parse(inp_step) {
+                Err(e) => {
+                    err = e;
+                    break;
+                }
+                Ok((_, i)) => {
+                    inp_step = i;
+                }
+            }
+
+            match self.elm_parser.parse(inp_step) {
+                Err(e) => {
+                    err = e;
+                    break;
+                }
+                Ok((elm, i)) => {
+                    res.push(elm);
+                    inp_step = i;
+                }
+            }
+
+            inp = inp_step;
+        }
+
+        if res.len() > 0 {
+            return Ok((res, inp));
+        }
+
+        return Err(err);
+    }
+}
+
+pub struct ListSepEmptyParser<P1, P2, O2> {
+    parser: OptionParser<ListSepParser<P1, P2, O2>>,
+}
+
+/// # Example:
+/// ```
+/// use parcomb::string_parser::lit;
+/// use parcomb::parser::*;
+///
+/// let par = lst_sep_empt(lit("a"), lit(","));
+/// let inp = "a,a,a)))";
+/// let res = par.parse(inp).unwrap();
+/// assert_eq!(vec!["a", "a", "a"], res.0);
+/// assert_eq!(")))", res.1);
+///
+/// let inp2 = "a)))";
+/// let res2 = par.parse(inp2).unwrap();
+/// assert_eq!(vec!["a"], res2.0);
+/// assert_eq!(")))", res2.1);
+///
+/// let inp3 = "b)))";
+/// let res3 = par.parse(inp3).unwrap();
+/// assert_eq!(Vec::<String>::new(), res3.0);
+/// assert_eq!("b)))", res3.1);
+/// ```
+impl<I, O1, O2, E, P1, P2> Parser<I, Vec<O1>, E> for ListSepEmptyParser<P1, P2, O2>
+where
+    I: ?Sized,
+    P1: Parser<I, O1, E>,
+    P2: Parser<I, O2, E>,
+{
+    fn parse<'a>(&self, input: &'a I) -> ParseResult<&'a I, Vec<O1>, E> {
+        let empt_res: Vec<O1> = vec![];
+
+        match self.parser.parse(input) {
+            Err(_) => Ok((empt_res, input)), // should never happend
+            Ok((opt, i)) => match opt {
+                None => Ok((empt_res, i)),
+                Some(elms) => Ok((elms, i)),
+            },
+        }
+    }
+}
+
+pub fn lst_sep<P1, P2, I, O1, O2, E>(elm_parser: P1, sep_parser: P2) -> ListSepParser<P1, P2, O2>
+where
+    I: ?Sized,
+    P1: Parser<I, O1, E>,
+    P2: Parser<I, O2, E>,
+{
+    ListSepParser {
+        elm_parser,
+        sep_parser,
+        _phantom: PhantomData,
+    }
+}
+
+pub fn lst_sep_empt<P1, P2, I, O1, O2, E>(
+    elm_parser: P1,
+    sep_parser: P2,
+) -> ListSepEmptyParser<P1, P2, O2>
+where
+    I: ?Sized,
+    P1: Parser<I, O1, E>,
+    P2: Parser<I, O2, E>,
+{
+    ListSepEmptyParser {
+        parser: lst_sep(elm_parser, sep_parser).opt(),
+    }
+}
