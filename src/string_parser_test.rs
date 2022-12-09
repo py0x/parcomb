@@ -38,9 +38,9 @@ fn test_reg_parse_integer() {
 
 #[test]
 fn test_reg_parse_float() {
-    let int_pat = r"0|([123456789]\d*)";
-    let frag_pat = r"\.\d+";
-    let ptn = format!("({int_pat})({frag_pat})?");
+    let int_ptn = r"0|([123456789]\d*)";
+    let frag_ptn = r"\.\d+";
+    let ptn = format!("({int_ptn})({frag_ptn})?");
     let par = reg(&ptn).map(|s| f64::from_str(&s).unwrap());
 
     // happy path: 1
@@ -67,12 +67,12 @@ fn test_reg_parse_float() {
 
 #[test]
 fn test_reg_parse_number() {
-    let sign_pat = r"-";
-    let int_pat = r"0|([123456789]\d*)";
-    let frag_pat = r"\.\d+";
-    let exp_pat = r"[eE][\+-]\d+";
+    let sign_ptn = r"-";
+    let int_ptn = r"0|([123456789]\d*)";
+    let frag_ptn = r"\.\d+";
+    let exp_ptn = r"[eE][\+-]\d+";
 
-    let ptn = format!("({sign_pat})?({int_pat})({frag_pat})?({exp_pat})?");
+    let ptn = format!("({sign_ptn})?({int_ptn})({frag_ptn})?({exp_ptn})?");
     let par = reg(&ptn).map(|s| f64::from_str(&s).unwrap());
 
     // happy path: integer
@@ -102,4 +102,41 @@ fn test_reg_parse_number() {
         let res = par.parse(inp);
         assert_eq!(Ok((314.15, "")), res);
     }
+}
+
+#[test]
+fn test_reg_parse_json_string() {
+    let str_char_ptn = r#"[^\\"]"#;
+    let esc_char_ptn = r#"\\[\\/"bfnrt]"#;
+    let utf16_char_ptn = r#"\\u[a-fA-F0-9]{4}"#;
+
+    let json_str_ptn = format!(r#""(({str_char_ptn})|({esc_char_ptn})|({utf16_char_ptn}))*""#);
+
+    let par = reg(&json_str_ptn);
+
+    {
+        let inp = r#""hello world\n"1234"#;
+        let res = par.parse(inp);
+        assert_eq!(Ok((r#""hello world\n""#.to_string(), "1234")), res);
+    }
+
+    {
+        let inp = r#""http://www.json.org/test/123456789""#;
+        let res = par.parse(inp);
+        assert_eq!(
+            Ok((r#""http://www.json.org/test/123456789""#.to_string(), "")),
+            res
+        );
+    }
+
+    {
+        let inp = r#""\u2192\uD83D\uDE00\"\t\uD834\uDD1E""#;
+        let res = par.parse(inp);
+        assert_eq!(
+            Ok((r#""\u2192\uD83D\uDE00\"\t\uD834\uDD1E""#.to_string(), "")),
+            res
+        );
+    }
+
+    //    println!("{:#?}", res);
 }
