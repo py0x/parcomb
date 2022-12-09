@@ -21,6 +21,35 @@ pub struct RegexParser {
     re: Regex,
 }
 
+impl Parser<str, String, String> for RegexParser {
+    fn parse<'a>(&self, input: &'a str) -> ParseResult<&'a str, String, String> {
+        match self.re.find(input) {
+            None => Err(format!("RegexParser: No Match")),
+            Some(mat) => {
+                let out = mat.as_str().to_string();
+                let remain_i = &input[(mat.end()..)];
+                Ok((out, remain_i))
+            }
+        }
+    }
+}
+
+/// # Example:
+/// ```
+/// use parcomb::string_parser::*;
+/// use parcomb::parser::{Parser, ParseResult};
+///
+/// let par = lit("hello");
+/// let inp = "hello,world";
+/// let res = par.parse(inp).unwrap();
+/// assert_eq!(("hello".to_string(), ",world"), res);
+///```
+pub fn lit(s: &str) -> LiteralParser {
+    LiteralParser {
+        literal: s.to_string(),
+    }
+}
+
 /// # Example:
 /// ```
 /// use parcomb::string_parser::*;
@@ -35,25 +64,6 @@ pub struct RegexParser {
 /// let res2 = par.parse(inp2);
 /// assert!(res2.is_err());
 /// ```
-impl Parser<str, String, String> for RegexParser {
-    fn parse<'a>(&self, input: &'a str) -> ParseResult<&'a str, String, String> {
-        match self.re.find(input) {
-            None => Err(format!("RegexParser: No Match")),
-            Some(mat) => {
-                let out = mat.as_str().to_string();
-                let remain_i = &input[(mat.end()..)];
-                Ok((out, remain_i))
-            }
-        }
-    }
-}
-
-pub fn lit(s: &str) -> LiteralParser {
-    LiteralParser {
-        literal: s.to_string(),
-    }
-}
-
 pub fn reg(re: &str) -> RegexParser {
     let re_pattern = format!("^{}", re);
     let re = Regex::new(&re_pattern).unwrap();
@@ -65,6 +75,16 @@ pub fn spaces() -> RegexParser {
     reg(r"(\s)*")
 }
 
+/// # Example:
+/// ```
+/// use parcomb::string_parser::*;
+/// use parcomb::parser::{Parser, ParseResult};
+///
+/// let par = lit_sp("{");
+/// let inp = "  \r   { \t \nok }";
+/// let res = par.parse(inp).unwrap();
+/// assert_eq!(("{".to_string(), "ok }"), res);
+///```
 pub fn lit_sp(s: &str) -> impl Parser<str, String, String> {
     spaces().and_r(lit(s)).and_l(spaces())
 }
