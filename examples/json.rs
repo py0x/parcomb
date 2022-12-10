@@ -70,11 +70,7 @@ fn object_p<'a>(input: &'a str) -> JsonResult<'a> {
     let kv_members = lst_sep_empt(kv_member, lit_sp(","));
 
     let obj = lit_sp("{").and_r(kv_members).and_l(lit_sp("}")).map(|kvs| {
-        let mut hmap = HashMap::<String, JsonValue>::new();
-        for (k, v) in kvs.into_iter() {
-            hmap.insert(k, v);
-        }
-
+        let hmap: HashMap<String, JsonValue> = kvs.into_iter().collect();
         JsonValue::Object(hmap)
     });
 
